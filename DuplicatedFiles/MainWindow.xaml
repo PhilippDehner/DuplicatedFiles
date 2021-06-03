@@ -1,0 +1,106 @@
+﻿<Window x:Class="DuplicatedFiles.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+				xmlns:uc="clr-namespace:DuplicatedFiles.UserControls"
+        xmlns:local="clr-namespace:DuplicatedFiles"
+        mc:Ignorable="d"
+        Title="Duplicated files" Height="600" Width="800">
+	<Grid>
+		<TabControl>
+			<TabItem Header="Settings">
+				<Grid Margin="10">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto" MaxHeight="300"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+
+					<!--Trash settings-->
+					<Grid Grid.Row="0">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+
+						<TextBlock Margin="5" Grid.Column="0" Grid.Row="0" Text="Aktion beim Entfernen: "/>
+						<RadioButton Margin="5" Grid.Column="1" Grid.Row="0" GroupName="DeleteMode" Content="Datei löschen"/>
+						<RadioButton x:Name="DeleteModeTrash" Margin="5" Grid.Column="2" Grid.Row="0" GroupName="DeleteMode" Content="Datei in eigenen Papierkorb verschieben"/>
+						<TextBlock Margin="5" Grid.Column="0" Grid.Row="1" Text="Papierkorb: "/>
+						<RadioButton Margin="5" Grid.Column="1" Grid.Row="1" GroupName="TrashMode" Content="ohne Ordnerstruktur" IsEnabled="{Binding ElementName=DeleteModeTrash, Path=IsChecked}"/>
+						<RadioButton Margin="5" Grid.Column="2" Grid.Row="1" GroupName="TrashMode" Content="mit Ordnerstruktur" IsEnabled="{Binding ElementName=DeleteModeTrash, Path=IsChecked}"/>
+						<Button Margin="5 5 2 5" Padding="5 0" Grid.Column="3" Grid.Row="1" Content="..." Click="TrashLLocation_Click" IsEnabled="{Binding ElementName=DeleteModeTrash, Path=IsChecked}"/>
+						<TextBox Margin="5" Grid.Column="4" Grid.Row="1" IsEnabled="{Binding ElementName=DeleteModeTrash, Path=IsChecked}"/>
+					</Grid>
+
+					<!--Searching Folders-->
+					<GroupBox Grid.Row="1" Header="Searching Folders">
+						<StackPanel Margin="5" Orientation="Vertical">
+							<Button Padding="5 1" HorizontalAlignment="Left" Width="Auto" Height="Auto" Content="Ordner hinzufügen" Click="SearchingFolderAdd"/>
+							<ListBox Name="SearchingFoldersList" Grid.Row="1" Margin="0 5" HorizontalContentAlignment="Stretch" SelectionChanged="lbTodoList_SelectionChanged" SelectionMode="Single">
+								<ListBox.ItemTemplate>
+									<DataTemplate>
+										<Grid>
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding FilePath}"/>
+											<Button Margin="5" Height="20" Padding="10 0" Grid.Column="2" Content="Datei entfernen" Click="DeleteSearchingFolder"/>
+										</Grid>
+									</DataTemplate>
+								</ListBox.ItemTemplate>
+							</ListBox>
+						</StackPanel>
+					</GroupBox>
+				</Grid>
+			</TabItem>
+
+			<!--Duplicated Files-->
+			<TabItem Header="Duplicated Files">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+					<StackPanel Grid.Row="0" HorizontalAlignment="Left" Orientation="Horizontal">
+						<Button Margin="5" Width="50" Content="zurück" />
+						<Button Margin="5" Width="50" Content="vor" />
+						<TextBlock Margin="5" Text="{Binding DuplicatesInfo}"/>
+					</StackPanel>
+					<GroupBox Grid.Row="1" Header="Duplicates">
+						<ListBox Name="SameFilesList" Margin="0 5" Grid.Row="2" HorizontalContentAlignment="Stretch" SelectionChanged="lbTodoList_SelectionChanged" SelectionMode="Single">
+						<ListBox.ItemTemplate>
+							<DataTemplate>
+								<Grid>
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="*"/>
+										<ColumnDefinition Width="Auto"/>
+										<ColumnDefinition Width="Auto"/>
+									</Grid.ColumnDefinitions>
+									<StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Vertical">
+										<TextBlock TextWrapping="Wrap" Text="{Binding FileName}" MouseDown="DuplFileOpenExplorer" ToolTip="Click to open in explorer"/>
+										<TextBlock Text="{Binding FileSizekB}"/>
+										<TextBlock Text="{Binding LastWriteTime}"/>
+									</StackPanel>
+									<Image Margin="3" Grid.Column="1" Source="{Binding FileName}" />
+									<Button Margin="10" Height="30" Padding="10 0" Grid.Column="2" Content="Datei entfernen" Click="DeleteFile"/>
+								</Grid>
+							</DataTemplate>
+						</ListBox.ItemTemplate>
+					</ListBox>
+					</GroupBox>
+				</Grid>
+			</TabItem>
+		</TabControl>
+	</Grid>
+</Window>

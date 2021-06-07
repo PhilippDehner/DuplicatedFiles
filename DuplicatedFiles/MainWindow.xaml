@@ -4,9 +4,15 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DuplicatedFiles"
+				xmlns:Converters="clr-namespace:DuplicatedFiles"
         mc:Ignorable="d"
         Title="Duplicated files" Height="600" Width="800" MinHeight="300" MinWidth="450"
 				Closing="Window_Closing">
+
+	<Window.Resources>
+		<Converters:ImageConverter x:Key="MyImageConverter"/>
+	</Window.Resources>
+
 	<Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="*"/>
@@ -108,7 +114,27 @@
 						<TextBlock Name="DuplicatesInfoText" Margin="5" />
 						<Button Margin="5" Width="50" Content="vor" Click="NextDuplicateCommand"/>
 					</StackPanel>
-					<GroupBox Grid.Row="1" Header="Duplicates">
+					<StackPanel Grid.Row="1" Orientation="Vertical">
+						<GroupBox Header="Information">
+							<Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="Auto"/>
+									<ColumnDefinition Width="*"/>
+								</Grid.ColumnDefinitions>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
+								</Grid.RowDefinitions>
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="Dateiname: "/>
+								<TextBlock Grid.Row="1" Grid.Column="0" Text="Dateigröße: "/>
+								<TextBlock Grid.Row="2" Grid.Column="0" Text="Letzter Schreibzugriff: "/>
+								<TextBlock Name="TB_DuplInfoName" Grid.Row="0" Grid.Column="1" />
+								<TextBlock Name="TB_DuplInfoSize" Grid.Row="1" Grid.Column="1" />
+								<TextBlock Name="TB_DuplInfoDate" Grid.Row="2" Grid.Column="1" />
+							</Grid>
+						</GroupBox>
+						<GroupBox  Header="Dateien">
 						<ListBox Name="SameFilesList" Margin="0 5" Grid.Row="2" HorizontalContentAlignment="Stretch" SelectionChanged="DuplicatesList_SelectionChanged" SelectionMode="Single">
 							<ListBox.ItemTemplate>
 								<DataTemplate>
@@ -123,17 +149,20 @@
 											<TextBlock Text="{Binding FileSizekB}"/>
 											<TextBlock Text="{Binding LastWriteTime}"/>
 										</StackPanel>
-										<Image Name="ShownImage" Margin="3" Grid.Column="1" MaxHeight="100" Source="{Binding FullNameTemp}"  />
+										<Image Name="ShownImage" Margin="3" 
+													 Grid.Column="1" MaxHeight="100" 
+													 Source="{Binding FullName, Converter={StaticResource ResourceKey=MyImageConverter}}"  />
 										<Button Margin="10" Height="30" Padding="10 0" Grid.Column="2" Content="Datei entfernen" Click="DeleteFile"/>
 									</Grid>
 								</DataTemplate>
 							</ListBox.ItemTemplate>
 						</ListBox>
 					</GroupBox>
+					</StackPanel>
 				</Grid>
 			</TabItem>
 		</TabControl>
-		
+
 		<StatusBar Grid.Row="1">
 			<StatusBarItem Content="Analysestatus: "/>
 			<StatusBarItem Name="SBI_Analysestatus" />

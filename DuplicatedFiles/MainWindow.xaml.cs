@@ -2,14 +2,17 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Forms;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Xml.Serialization;
 
 namespace DuplicatedFiles
@@ -128,24 +131,18 @@ namespace DuplicatedFiles
 					return fileInfo.FullName;
 				}
 			}
-			public string FullNameTemp
-			{
-				get
-				{
-					string copy = Path.GetTempPath() + Name + "_" + this.GetHashCode().ToString();
-					if (!File.Exists(copy))
-					{
-						File.Copy(FullName, copy);
-						tmpFiles.Add(copy);
-					}
-					return copy;
-				}
-			}
 			public string Name
 			{
 				get
 				{
 					return fileInfo.Name;
+				}
+			}
+			public long FileSize
+			{
+				get
+				{
+					return fileInfo.Length;
 				}
 			}
 			public string FileSizeB
@@ -229,8 +226,6 @@ namespace DuplicatedFiles
 		private List<OwnFile> allFiles;
 
 		private List<List<OwnFile>> duplicates = new List<List<OwnFile>>();
-
-		private static List<string> tmpFiles = new List<string>();
 
 		private int _currentDuplicate;
 		public int CurrentDuplicate
@@ -324,6 +319,57 @@ namespace DuplicatedFiles
 		private void DuplicatesInfo()
 		{
 			DuplicatesInfoText.Text = (CurrentDuplicate + 1).ToString() + " / " + duplicates.Count.ToString();
+
+			if (duplicates != null && duplicates.Count > 0 && duplicates[CurrentDuplicate] != null)
+			{
+				var ds = duplicates[CurrentDuplicate];
+
+				bool sameName = true;
+				bool sameSize = true;
+				bool sameDate = true;
+
+				for (int i = 1; i < ds.Count; i++)
+				{
+					if (!ds[i].Name.Equals(ds[i - 1].Name) && sameName)
+						sameName = false;
+					if (!ds[i].FileSize.Equals(ds[i - 1].FileSize) && sameSize)
+						sameSize = false;
+					if (!ds[i].LastWriteTime.Equals(ds[i - 1].LastWriteTime) && sameDate)
+						sameDate = false;
+				}
+
+				if (sameName)
+				{
+					TB_DuplInfoName.Text = ds[0].Name;
+					TB_DuplInfoName.Foreground = Brushes.Black;
+				}
+				else
+				{
+					TB_DuplInfoName.Text = "Unterschiedliche Dateinamen";
+					TB_DuplInfoName.Foreground = Brushes.Orange;
+				}
+
+				if (sameSize)
+				{
+					TB_DuplInfoSize.Text = ds[0].FileSizeB;
+					TB_DuplInfoSize.Foreground = Brushes.Black;
+				}
+				else
+				{
+					TB_DuplInfoSize.Text = "Unterschiedliche Dateigrößen";
+					TB_DuplInfoSize.Foreground = Brushes.Orange;
+				}
+				if (sameDate)
+				{
+					TB_DuplInfoDate.Text = ds[0].LastWriteTime.ToString();
+					TB_DuplInfoDate.Foreground = Brushes.Black;
+				}
+				else
+				{
+					TB_DuplInfoDate.Text = "Unterschiedliche Erstelldaten";
+					TB_DuplInfoDate.Foreground = Brushes.Orange;
+				}
+			}
 		}
 
 		private SettingsClass ReadSettingsFromXml()
@@ -371,7 +417,7 @@ namespace DuplicatedFiles
 			var currentDuplicate = new Progress<int>(value => CurrentDuplicate = value);
 			await Task.Run(() => { Analysis(state, foundFiles, foundDuplicates, foundDuplicatesProgress, foundDuplicatesProgressMaximum, currentDuplicate); });
 
-			System.Windows.MessageBox.Show("Fertig");
+			System.Windows.MessageBox.Show("Auswertung beendet", "Auswertung");
 		}
 
 		private void Analysis(IProgress<AnalysisStates> state, IProgress<int> foundFiles, IProgress<int> foundDuplicates, IProgress<int> foundDuplicatesProgress, IProgress<int> foundDuplicatesProgressMaximum, IProgress<int> currentDuplicate)
@@ -446,9 +492,7 @@ namespace DuplicatedFiles
 		#region Events
 		private void DuplicatesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
-
-			ListBoxItem lbi = ((sender as System.Windows.Controls.ListBox).SelectedItem as ListBoxItem);
-			//	tb.Text = "   You selected " + lbi.Content.ToString() + ".";
+			//ListBoxItem lbi = ((sender as System.Windows.Controls.ListBox).SelectedItem as ListBoxItem);
 		}
 
 		private void DeleteFile(object sender, RoutedEventArgs e)
@@ -456,14 +500,8 @@ namespace DuplicatedFiles
 			FrameworkElement baseobj = sender as FrameworkElement;
 			OwnFile file = baseobj.DataContext as OwnFile;
 
-			FrameworkElement parent = baseobj.Parent as FrameworkElement;
-			Image foundImage = FindChild<Image>(System.Windows.Application.Current.MainWindow, "ShownImage");
-
-			Image.SourceProperty
-
 			duplicates[CurrentDuplicate].Remove(file);
 			CurrentDuplicate = CurrentDuplicate;
-			//File.
 
 			if (Settings.DeleteMode)
 			{
@@ -486,6 +524,8 @@ namespace DuplicatedFiles
 				duplicates.RemoveAt(CurrentDuplicate);
 				CurrentDuplicate = CurrentDuplicate;
 			}
+
+			DuplicatesInfo();
 		}
 
 		private void TrashLLocation_Click(object sender, RoutedEventArgs e)
@@ -583,6 +623,7 @@ namespace DuplicatedFiles
 		{
 			Tab_DuplicatedFiles.IsEnabled = true;
 			Tab_DuplicatedFiles.IsSelected = true;
+			DuplicatesInfo();
 		}
 
 		private void StartAnalysis_Click(object sender, RoutedEventArgs e)
@@ -602,10 +643,6 @@ namespace DuplicatedFiles
 
 		void Window_Closing(object sender, CancelEventArgs e)
 		{
-			foreach (string file in tmpFiles)
-			{
-				File.Delete(file);
-			}
 		}
 		#endregion
 
@@ -618,8 +655,7 @@ namespace DuplicatedFiles
 		/// <param name="childName">x:Name or Name of child. </param>
 		/// <returns>The first parent item that matches the submitted type parameter. 
 		/// If not matching item can be found, a null parent is being returned.</returns>
-		public static T FindChild<T>(DependencyObject parent, string childName)
-			 where T : DependencyObject
+		private static T FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject
 		{
 			// Confirm parent and childName are valid. 
 			if (parent == null) return null;
@@ -669,6 +705,42 @@ namespace DuplicatedFiles
 		{
 			var da = (DescriptionAttribute[])(value.GetType().GetField(value.ToString())).GetCustomAttributes(typeof(DescriptionAttribute), false);
 			return da.Length > 0 ? da[0].Description : value.ToString();
+		}
+	}
+
+	public class ImageConverter : IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			var path = value as string;
+
+			if (path == null)
+			{
+				return DependencyProperty.UnsetValue;
+			}
+			//create new stream and create bitmap frame
+			var bitmapImage = new BitmapImage();
+			bitmapImage.BeginInit();
+			try
+			{
+				bitmapImage.StreamSource = new FileStream(path, FileMode.Open, FileAccess.Read);
+				//load the image now so we can immediately dispose of the stream
+				bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+				bitmapImage.EndInit();
+				//clean up the stream to avoid file access exceptions when attempting to delete images
+				bitmapImage.StreamSource.Dispose();
+				return bitmapImage;
+			}
+			catch (Exception)
+			{
+				//do smth
+			}
+			return bitmapImage;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

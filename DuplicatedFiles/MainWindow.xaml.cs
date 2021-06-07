@@ -1,22 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Forms;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using System.Xml;
 using System.Xml.Serialization;
 
 namespace DuplicatedFiles
@@ -26,12 +19,47 @@ namespace DuplicatedFiles
 	/// </summary>
 	public partial class MainWindow : Window
 	{
+		#region enums
+
+		public enum AnalysisStates
+		{
+			[Description("unknown")]
+			unknown,
+
+			[Description("Noch keine Analyse durchgeführt")]
+			NoAnalysisDone,
+
+			[Description("Alle Dateien suchen")]
+			GetAllFiles,
+
+			[Description("Liste mit allen Dateien erstellen")]
+			CreateListAllFiles,
+
+			[Description("Search for duplicates")]
+			DuplicatesSearching,
+
+			[Description("Analyse durchgeführt")]
+			AnalysisDone
+		}
+
+		#endregion
+
 		#region types
 		public class SettingsClass
 		{
 			#region Trash
+			/// <summary>
+			/// true == Delete
+			/// false == Move to Trash folder
+			/// </summary>
 			public bool DeleteMode;
-			public bool TrashMode;
+
+			/// <summary>
+			/// true == without directory structure
+			/// false == with directory structure
+			/// </summary>
+			public bool TrashMode = true;
+
 			public string TrashPath;
 			#endregion
 
@@ -55,7 +83,6 @@ namespace DuplicatedFiles
 
 			public List<OwnPath> SearchingPaths;
 
-
 			public string SearchingPathsToOneString
 			{
 				get
@@ -75,6 +102,8 @@ namespace DuplicatedFiles
 			{
 				SearchingPaths = new List<OwnPath>();
 				SettingsVersion = 0;
+
+				DeleteMode = false;
 			}
 
 			public void Settingsupdater()
@@ -92,11 +121,31 @@ namespace DuplicatedFiles
 		public class OwnFile
 		{
 			private FileInfo fileInfo;
-			public string FileName
+			public string FullName
 			{
 				get
 				{
 					return fileInfo.FullName;
+				}
+			}
+			public string FullNameTemp
+			{
+				get
+				{
+					string copy = Path.GetTempPath() + Name + "_" + this.GetHashCode().ToString();
+					if (!File.Exists(copy))
+					{
+						File.Copy(FullName, copy);
+						tmpFiles.Add(copy);
+					}
+					return copy;
+				}
+			}
+			public string Name
+			{
+				get
+				{
+					return fileInfo.Name;
 				}
 			}
 			public string FileSizeB
@@ -134,34 +183,13 @@ namespace DuplicatedFiles
 				get { return BitConverter.ToString(Hash).Replace("-", ""); }
 			}
 
-			//private ICommand deleteImage;
-			//public ICommand DeleteImage
-			//{
-			//	get
-			//	{
-			//		if (this.deleteImage == null)
-			//		{
-			//			//this.deleteImage = new ICommand<object>(this.ExecuteCloseButton);
-			//		}
-
-			//		return this.deleteImage;
-			//	}
-			//}
-
-			private void ExecuteCloseButton(object err)
-			{
-
-			}
-
-
-
 			public OwnFile(string filePath)
 			{
 				this.fileInfo = new FileInfo(filePath);
 
 				using (var sha256 = System.Security.Cryptography.SHA256.Create())
 				{
-					using (var stream = System.IO.File.OpenRead(this.FileName))
+					using (var stream = System.IO.File.OpenRead(this.FullName))
 					{
 						Hash = sha256.ComputeHash(stream);
 					}
@@ -172,22 +200,6 @@ namespace DuplicatedFiles
 			{
 				return this.HashStr.Equals(obj.HashStr);
 				//return this.Hash.Equals(obj.Hash);
-			}
-		}
-
-		public class Duplicate
-		{
-			public List<OwnFile> Files;
-			public void Add(OwnFile ownFile)
-			{
-				Files.Add(ownFile);
-			}
-			public int Count
-			{
-				get
-				{
-					return Files.Count;
-				}
 			}
 		}
 
@@ -211,76 +223,94 @@ namespace DuplicatedFiles
 		}
 		#endregion
 
+		#region properties
 		public SettingsClass Settings;
 
 		private List<OwnFile> allFiles;
 
-		private List<Duplicate> duplicates;
+		private List<List<OwnFile>> duplicates = new List<List<OwnFile>>();
 
-		public string DuplicatesInfo
+		private static List<string> tmpFiles = new List<string>();
+
+		private int _currentDuplicate;
+		public int CurrentDuplicate
 		{
 			get
 			{
-				object item = SameFilesList.SelectedItem;
-				List<OwnFile> list = item as List<OwnFile>;
-				return duplicates.IndexOf(list) + " / " + duplicates.Count.ToString();
+				return _currentDuplicate;
+			}
+			set
+			{
+				_currentDuplicate = value;
+				if (duplicates == null || duplicates.Count == 0)
+					return;
+
+				if (_currentDuplicate > duplicates.Count - 1)
+					_currentDuplicate = 0;
+				if (_currentDuplicate < 0)
+					_currentDuplicate = duplicates.Count - 1;
+
+				SameFilesList.ItemsSource = duplicates[_currentDuplicate];
 			}
 		}
+
+		private AnalysisStates _analysisStates;
+		private AnalysisStates AnalysisState
+		{
+			set
+			{
+				if (value == null)
+				{
+					_analysisStates = AnalysisStates.unknown;
+					return;
+				}
+				_analysisStates = value;
+				SBI_Analysestatus.Content = value.ToDescription();
+
+				switch (_analysisStates)
+				{
+					case AnalysisStates.NoAnalysisDone:
+						But_EditDuplicates.IsEnabled = false;
+						break;
+					case AnalysisStates.GetAllFiles:
+					case AnalysisStates.CreateListAllFiles:
+						But_EditDuplicates.IsEnabled = false;
+						break;
+					case AnalysisStates.DuplicatesSearching:
+						But_EditDuplicates.IsEnabled = true;
+						break;
+					case AnalysisStates.AnalysisDone:
+						But_EditDuplicates.IsEnabled = true;
+						Tab_DuplicatedFiles.IsEnabled = true;
+						break;
+					default:
+						break;
+				}
+			}
+		}
+		#endregion
 
 		public MainWindow()
 		{
 			InitializeComponent();
+			this.DataContext = this;
+
+			AnalysisState = AnalysisStates.NoAnalysisDone;
 
 			Settings = ReadSettingsFromXml();
 			Settings.Settingsupdater();
 
-			allFiles = new List<OwnFile>();
-
-			// Search for all files
-			foreach (OwnPath searchingPath in Settings.SearchingPaths)
-			{
-				string[] filePaths = Directory.GetFiles(searchingPath.FilePath, "*.*", SearchOption.AllDirectories);
-				foreach (string filePath in filePaths)
-				{
-					allFiles.Add(new OwnFile(filePath));
-				}
-			}
-
-			// Find duplicated files
-			duplicates = new List<Duplicate>();
-			while (allFiles.Count > 0)
-			{
-				OwnFile comparingFile = allFiles[0];
-				allFiles.RemoveAt(0);
-				Duplicate sameFile = new Duplicate();
-				foreach (OwnFile file in allFiles)
-				{
-					if (file.Equals(comparingFile))
-					{
-						sameFile.Add(file);
-					}
-				}
-				if (sameFile.Count > 0)
-				{
-					sameFile.Add(comparingFile);
-					duplicates.Add(sameFile);
-				}
-			}
-
-			// Output
-			foreach (Duplicate sameFiles in duplicates)
-			{
-				foreach (OwnFile file in sameFiles.Files)
-				{
-					Console.WriteLine(file.FileName + " | ");
-				}
-				Console.WriteLine();
-			}
-
-			SameFilesList.ItemsSource = duplicates[0].Files;
-
 			SearchingFoldersList.ItemsSource = Settings.SearchingPaths;
 
+			RB_DeleteModeTrash.IsChecked = !Settings.DeleteMode;
+			RB_DeleteModeDeleting.IsChecked = Settings.DeleteMode;
+			RB_SeetingsTrashWithoutStructure.IsChecked = Settings.TrashMode;
+			RB_SeetingsTrashWithStructure.IsChecked = !Settings.TrashMode;
+
+			Tab_Auswertung.IsEnabled = false;
+			Tab_DuplicatedFiles.IsEnabled = false;
+
+			SettingsTrashDirectory.Text = Settings.TrashPath;
 			WriteSettingsToXml(Settings);
 		}
 
@@ -289,6 +319,11 @@ namespace DuplicatedFiles
 		{
 			WriteSettingsToXml(Settings);
 			SearchingFoldersList.Items.Refresh();
+		}
+
+		private void DuplicatesInfo()
+		{
+			DuplicatesInfoText.Text = (CurrentDuplicate + 1).ToString() + " / " + duplicates.Count.ToString();
 		}
 
 		private SettingsClass ReadSettingsFromXml()
@@ -308,6 +343,7 @@ namespace DuplicatedFiles
 			}
 			return s;
 		}
+
 		private void WriteSettingsToXml(SettingsClass settings)
 		{
 			if (!Directory.Exists(settings.directoryPathSettings))
@@ -324,10 +360,91 @@ namespace DuplicatedFiles
 			serializer.Serialize(writer, settings);
 			writer.Close();
 		}
+
+		private async void StartAnalysis()
+		{
+			var state = new Progress<AnalysisStates>(v => AnalysisState = v);
+			var foundFiles = new Progress<int>(value => TB_FoundFiles.Text = value.ToString());
+			var foundDuplicates = new Progress<int>(value => TB_FoundDuplicates.Text = value.ToString());
+			var foundDuplicatesProgress = new Progress<int>(value => PB_FoundDuplicatesProgress.Value = value);
+			var foundDuplicatesProgressMaximum = new Progress<int>(value => PB_FoundDuplicatesProgress.Maximum = value);
+			var currentDuplicate = new Progress<int>(value => CurrentDuplicate = value);
+			await Task.Run(() => { Analysis(state, foundFiles, foundDuplicates, foundDuplicatesProgress, foundDuplicatesProgressMaximum, currentDuplicate); });
+
+			System.Windows.MessageBox.Show("Fertig");
+		}
+
+		private void Analysis(IProgress<AnalysisStates> state, IProgress<int> foundFiles, IProgress<int> foundDuplicates, IProgress<int> foundDuplicatesProgress, IProgress<int> foundDuplicatesProgressMaximum, IProgress<int> currentDuplicate)
+		{
+			allFiles = new List<OwnFile>();
+			int allFilesCount = 0;
+			List<string[]> filePathsList = new List<string[]>();
+
+			// Get all files
+			state.Report(AnalysisStates.GetAllFiles);
+			foreach (OwnPath searchingPath in Settings.SearchingPaths)
+			{
+				filePathsList.Add(Directory.GetFiles(searchingPath.FilePath, "*.*", SearchOption.AllDirectories));
+			}
+
+			// Search for all files
+			state.Report(AnalysisStates.CreateListAllFiles);
+			foreach (OwnPath searchingPath in Settings.SearchingPaths)
+			{
+				foreach (string[] filePaths in filePathsList)
+				{
+					foreach (string filePath in filePaths)
+					{
+						allFiles.Add(new OwnFile(filePath));
+						foundFiles.Report(allFiles.Count);
+					}
+				}
+			}
+			allFilesCount = allFiles.Count;
+
+			foundDuplicatesProgressMaximum.Report(allFilesCount);
+
+			// Find duplicated files
+			state.Report(AnalysisStates.DuplicatesSearching);
+			duplicates = new List<List<OwnFile>>();
+			while (allFiles.Count > 0)
+			{
+				OwnFile comparingFile = allFiles[0];
+				allFiles.RemoveAt(0);
+				List<OwnFile> sameFile = new List<OwnFile>();
+				List<OwnFile> toDeleteFiles = new List<OwnFile>();
+				foreach (OwnFile file in allFiles)
+				{
+					if (file.Equals(comparingFile))
+					{
+						sameFile.Add(file);
+						toDeleteFiles.Add(file);
+					}
+				}
+				foreach (OwnFile file in toDeleteFiles)
+				{
+					allFiles.Remove(file);
+				}
+				if (sameFile.Count > 0)
+				{
+					sameFile.Add(comparingFile);
+					duplicates.Add(sameFile);
+
+					foundDuplicates.Report(duplicates.Count);
+					Thread.Sleep(10);
+				}
+
+				foundDuplicatesProgress.Report(allFilesCount - allFiles.Count);
+				//foundDuplicatesProgressMaximum.Report(allFiles.Count);
+			}
+
+			state.Report(AnalysisStates.AnalysisDone);
+			currentDuplicate.Report(0);
+		}
 		#endregion
 
 		#region Events
-		private void lbTodoList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		private void DuplicatesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 
 			ListBoxItem lbi = ((sender as System.Windows.Controls.ListBox).SelectedItem as ListBoxItem);
@@ -336,7 +453,39 @@ namespace DuplicatedFiles
 
 		private void DeleteFile(object sender, RoutedEventArgs e)
 		{
+			FrameworkElement baseobj = sender as FrameworkElement;
+			OwnFile file = baseobj.DataContext as OwnFile;
 
+			FrameworkElement parent = baseobj.Parent as FrameworkElement;
+			Image foundImage = FindChild<Image>(System.Windows.Application.Current.MainWindow, "ShownImage");
+
+			Image.SourceProperty
+
+			duplicates[CurrentDuplicate].Remove(file);
+			CurrentDuplicate = CurrentDuplicate;
+			//File.
+
+			if (Settings.DeleteMode)
+			{
+				File.Delete(file.FullName);
+			}
+			else
+			{
+				if (Settings.TrashMode)
+				{
+					File.Move(file.FullName, Settings.TrashPath + "\\" + file.Name);
+				}
+				else
+				{
+					throw new NotImplementedException();
+				}
+			}
+
+			if (duplicates[CurrentDuplicate].Count <= 1)
+			{
+				duplicates.RemoveAt(CurrentDuplicate);
+				CurrentDuplicate = CurrentDuplicate;
+			}
 		}
 
 		private void TrashLLocation_Click(object sender, RoutedEventArgs e)
@@ -350,6 +499,8 @@ namespace DuplicatedFiles
 					Settings.TrashPath = fbd.SelectedPath;
 				}
 			}
+			SettingsTrashDirectory.Text = Settings.TrashPath;
+			WriteSettingsToXml(Settings);
 		}
 
 		private void SearchingFolderAdd(object sender, RoutedEventArgs e)
@@ -400,7 +551,124 @@ namespace DuplicatedFiles
 			Process.Start(info);
 		}
 
+		private void NextDuplicateCommand(object sender, RoutedEventArgs e)
+		{
+			if (duplicates.Count > 0)
+			{
+				CurrentDuplicate++;
+				DuplicatesInfo();
+			}
+		}
+
+		private void PreviousDuplicateCommand(object sender, RoutedEventArgs e)
+		{
+			if (duplicates.Count > 0)
+			{
+				CurrentDuplicate--;
+				DuplicatesInfo();
+			}
+		}
+
+		private void SettingsDeleteFile_Checked(object sender, RoutedEventArgs e)
+		{
+			Settings.DeleteMode = true;
+		}
+
+		private void SettingsFileToTrash_Checked(object sender, RoutedEventArgs e)
+		{
+			Settings.DeleteMode = false;
+		}
+
+		private void EditDuplicates(object sender, RoutedEventArgs e)
+		{
+			Tab_DuplicatedFiles.IsEnabled = true;
+			Tab_DuplicatedFiles.IsSelected = true;
+		}
+
+		private void StartAnalysis_Click(object sender, RoutedEventArgs e)
+		{
+			TB_FoundDuplicates.Text = "0";
+			TB_FoundFiles.Text = "0";
+
+			Tab_Auswertung.IsEnabled = true;
+			Tab_Auswertung.IsSelected = true;
+			But_EditDuplicates.IsEnabled = false;
+
+			StartAnalysis();
+
+			DuplicatesInfo();
+			But_EditDuplicates.IsEnabled = true;
+		}
+
+		void Window_Closing(object sender, CancelEventArgs e)
+		{
+			foreach (string file in tmpFiles)
+			{
+				File.Delete(file);
+			}
+		}
 		#endregion
 
+
+		/// <summary>
+		/// Finds a Child of a given item in the visual tree. 
+		/// </summary>
+		/// <param name="parent">A direct parent of the queried item.</param>
+		/// <typeparam name="T">The type of the queried item.</typeparam>
+		/// <param name="childName">x:Name or Name of child. </param>
+		/// <returns>The first parent item that matches the submitted type parameter. 
+		/// If not matching item can be found, a null parent is being returned.</returns>
+		public static T FindChild<T>(DependencyObject parent, string childName)
+			 where T : DependencyObject
+		{
+			// Confirm parent and childName are valid. 
+			if (parent == null) return null;
+
+			T foundChild = null;
+
+			int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+			for (int i = 0; i < childrenCount; i++)
+			{
+				var child = VisualTreeHelper.GetChild(parent, i);
+				// If the child is not of the request child type child
+				T childType = child as T;
+				if (childType == null)
+				{
+					// recursively drill down the tree
+					foundChild = FindChild<T>(child, childName);
+
+					// If the child is found, break so we do not overwrite the found child. 
+					if (foundChild != null) break;
+				}
+				else if (!string.IsNullOrEmpty(childName))
+				{
+					var frameworkElement = child as FrameworkElement;
+					// If the child's name is set for search
+					if (frameworkElement != null && frameworkElement.Name == childName)
+					{
+						// if the child's name is of the request name
+						foundChild = (T)child;
+						break;
+					}
+				}
+				else
+				{
+					// child element found.
+					foundChild = (T)child;
+					break;
+				}
+			}
+
+			return foundChild;
+		}
+	}
+
+	public static class AttributesHelperExtension
+	{
+		public static string ToDescription(this Enum value)
+		{
+			var da = (DescriptionAttribute[])(value.GetType().GetField(value.ToString())).GetCustomAttributes(typeof(DescriptionAttribute), false);
+			return da.Length > 0 ? da[0].Description : value.ToString();
+		}
 	}
 }

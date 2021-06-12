@@ -330,20 +330,10 @@ namespace DuplicatedFiles
 
 			Settings = ReadSettingsFromXml();
 			Settings.Settingsupdater();
-
-			SearchingFoldersList.ItemsSource = Settings.SearchingPaths;
-
-			RB_DeleteModeTrash.IsChecked = !Settings.DeleteMode;
-			RB_DeleteModeDeleting.IsChecked = Settings.DeleteMode;
-			RB_SeetingsTrashWithoutStructure.IsChecked = Settings.TrashMode;
-			RB_SeetingsTrashWithStructure.IsChecked = !Settings.TrashMode;
-			CB_IgnoreMetaData.IsChecked = Settings.IgnoreMetaData;
-
+			UpdateGuiFromSettings(Settings);
+			
 			Tab_Auswertung.IsEnabled = false;
 			Tab_DuplicatedFiles.IsEnabled = false;
-
-			SettingsTrashDirectory.Text = Settings.TrashPath;
-			WriteSettingsToXml(Settings);
 		}
 
 		#region private Methods
@@ -435,6 +425,19 @@ namespace DuplicatedFiles
 					TB_DuplInfoMetaData.Foreground = System.Windows.Media.Brushes.Black;
 				}
 			}
+		}
+
+		private void UpdateGuiFromSettings(SettingsClass settings)
+		{
+			SearchingFoldersList.ItemsSource = Settings.SearchingPaths;
+
+			RB_DeleteModeTrash.IsChecked = !Settings.DeleteMode;
+			RB_DeleteModeDeleting.IsChecked = Settings.DeleteMode;
+			RB_SeetingsTrashWithoutStructure.IsChecked = Settings.TrashMode;
+			RB_SeetingsTrashWithStructure.IsChecked = !Settings.TrashMode;
+			CB_IgnoreMetaData.IsChecked = Settings.IgnoreMetaData;
+
+			SettingsTrashDirectory.Text = Settings.TrashPath;
 		}
 
 		private SettingsClass ReadSettingsFromXml()

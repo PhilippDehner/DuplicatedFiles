@@ -69,5 +69,15 @@ namespace DuplicatedFiles.Properties {
                 return ((System.Drawing.Icon)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap NoValidImage_de {
+            get {
+                object obj = ResourceManager.GetObject("NoValidImage_de", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }

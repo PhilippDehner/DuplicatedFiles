@@ -50,6 +50,9 @@
 											Content="Nicht beachten"
 											ToolTip="Verlangsamt die Auswertung, da pixelweise Auswertung notwendig"
 											Checked="CB_IgnoreMetaData_Changed" Unchecked="CB_IgnoreMetaData_Changed"/>
+						<TextBlock Margin="5"
+											 Grid.Column="2" Grid.Row="0"
+											 Text="(Nur Bilder werden ausgewertet, verlangsamt die Ausewrtung)"/>
 
 						<TextBlock Margin="5" 
 											 Grid.Column="0" Grid.Row="1" 

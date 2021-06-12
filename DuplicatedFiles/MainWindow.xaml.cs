@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -203,8 +204,17 @@ namespace DuplicatedFiles
 
 			public bool EqualsPixels(OwnFile obj)
 			{
-				var img1 = (Bitmap)System.Drawing.Image.FromFile(FullName);
-				var img2 = (Bitmap)System.Drawing.Image.FromFile(obj.FullName);
+				Bitmap img1, img2;
+				try
+				{
+					img1 = (Bitmap)System.Drawing.Image.FromFile(FullName);
+				}
+				catch (Exception) { return false; }
+				try
+				{
+					img2 = (Bitmap)System.Drawing.Image.FromFile(obj.FullName);
+				}
+				catch (Exception) { return false; }
 
 				if (img1.Width == img2.Width && img1.Height == img2.Height)
 				{
@@ -331,7 +341,7 @@ namespace DuplicatedFiles
 			Settings = ReadSettingsFromXml();
 			Settings.Settingsupdater();
 			UpdateGuiFromSettings(Settings);
-			
+
 			Tab_Auswertung.IsEnabled = false;
 			Tab_DuplicatedFiles.IsEnabled = false;
 		}
@@ -737,42 +747,6 @@ namespace DuplicatedFiles
 		{
 			var da = (DescriptionAttribute[])(value.GetType().GetField(value.ToString())).GetCustomAttributes(typeof(DescriptionAttribute), false);
 			return da.Length > 0 ? da[0].Description : value.ToString();
-		}
-	}
-
-	public class ImageConverter : IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			var path = value as string;
-
-			if (path == null)
-			{
-				return DependencyProperty.UnsetValue;
-			}
-			//create new stream and create bitmap frame
-			var bitmapImage = new BitmapImage();
-			bitmapImage.BeginInit();
-			try
-			{
-				bitmapImage.StreamSource = new FileStream(path, FileMode.Open, FileAccess.Read);
-				//load the image now so we can immediately dispose of the stream
-				bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-				bitmapImage.EndInit();
-				//clean up the stream to avoid file access exceptions when attempting to delete images
-				bitmapImage.StreamSource.Dispose();
-				return bitmapImage;
-			}
-			catch (Exception)
-			{
-				//do smth
-			}
-			return bitmapImage;
-		}
-
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			throw new NotImplementedException();
 		}
 	}
 }

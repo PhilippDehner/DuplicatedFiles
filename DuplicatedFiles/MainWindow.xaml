@@ -39,23 +39,60 @@
 						<Grid.RowDefinitions>
 							<RowDefinition Height="Auto"/>
 							<RowDefinition Height="Auto"/>
+							<RowDefinition Height="Auto"/>
 						</Grid.RowDefinitions>
 
-						<TextBlock Margin="5" Grid.Column="0" Grid.Row="0" Text="Aktion beim Entfernen: "/>
-						<RadioButton Name="RB_DeleteModeDeleting" Margin="5" Grid.Column="1" Grid.Row="0" GroupName="DeleteMode" Content="Datei löschen" Checked="SettingsDeleteFile_Checked"/>
-						<RadioButton Name="RB_DeleteModeTrash" Margin="5" Grid.Column="2" Grid.Row="0" GroupName="DeleteMode" Content="Datei in eigenen Papierkorb verschieben" Checked="SettingsFileToTrash_Checked"/>
-						<TextBlock Margin="5" Grid.Column="0" Grid.Row="1" Text="Papierkorb: "/>
-						<RadioButton Name="RB_SeetingsTrashWithoutStructure" Margin="5" Grid.Column="1" Grid.Row="1" GroupName="TrashMode" Content="ohne Ordnerstruktur" IsEnabled="{Binding ElementName=RB_DeleteModeTrash, Path=IsChecked}"/>
-						<RadioButton Name="RB_SeetingsTrashWithStructure" Margin="5" Grid.Column="2" Grid.Row="1" GroupName="TrashMode" Content="mit Ordnerstruktur" IsEnabled="False"/>
-						<Button Margin="5 5 2 5" Padding="5 0" Grid.Column="3" Grid.Row="1" Content="..." Click="TrashLLocation_Click" IsEnabled="{Binding ElementName=RB_DeleteModeTrash, Path=IsChecked}"/>
-						<TextBox Name="SettingsTrashDirectory" Margin="5" Grid.Column="4" Grid.Row="1" IsEnabled="False" />
+						<TextBlock Margin="5"
+											 Grid.Column="0" Grid.Row="0"
+											 Text="Metadaten" ToolTip="Verlangsamt die Auswertung, da pixelweise Auswertung notwendig"/>
+						<CheckBox Name="CB_IgnoreMetaData" Margin="5"
+											Grid.Row="0" Grid.Column="1"
+											Content="Nicht beachten"
+											ToolTip="Verlangsamt die Auswertung, da pixelweise Auswertung notwendig"
+											Checked="CB_IgnoreMetaData_Changed" Unchecked="CB_IgnoreMetaData_Changed"/>
+
+						<TextBlock Margin="5" 
+											 Grid.Column="0" Grid.Row="1" 
+											 Text="Aktion beim Entfernen: "/>
+						<RadioButton Name="RB_DeleteModeDeleting" 
+												 Margin="5" 
+												 Grid.Column="1" Grid.Row="1" 
+												 GroupName="DeleteMode" Content="Datei löschen" Checked="SettingsDeleteFile_Checked"/>
+						<RadioButton Name="RB_DeleteModeTrash" 
+												 Margin="5" 
+												 Grid.Column="2" Grid.Row="1" 
+												 GroupName="DeleteMode" Content="Datei in eigenen Papierkorb verschieben" Checked="SettingsFileToTrash_Checked"/>
+
+						<TextBlock Margin="5" 
+											 Grid.Column="0" Grid.Row="2" 
+											 Text="Papierkorb: "/>
+						<RadioButton Name="RB_SeetingsTrashWithoutStructure" 
+												 Margin="5" 
+												 Grid.Column="1" Grid.Row="2" 
+												 GroupName="TrashMode" Content="ohne Ordnerstruktur" 
+												 IsEnabled="{Binding ElementName=RB_DeleteModeTrash, Path=IsChecked}"/>
+						<RadioButton Name="RB_SeetingsTrashWithStructure" 
+												 Margin="5" 
+												 Grid.Column="2" Grid.Row="2" 
+												 GroupName="TrashMode" Content="mit Ordnerstruktur" IsEnabled="False"/>
+						<Button Margin="5 5 2 5" Padding="5 0" 
+										Grid.Column="3" Grid.Row="2" 
+										Content="..." Click="TrashLLocation_Click" 
+										IsEnabled="{Binding ElementName=RB_DeleteModeTrash, Path=IsChecked}"/>
+						<TextBox Name="SettingsTrashDirectory" Margin="5" 
+										 Grid.Column="4" Grid.Row="2" 
+										 IsEnabled="False" />
 					</Grid>
 
 					<!--Searching Folders-->
 					<GroupBox Grid.Row="1" Header="Durchsuchte Ordner">
 						<StackPanel Margin="5" Orientation="Vertical">
-							<Button Padding="5 1" HorizontalAlignment="Left" Width="Auto" Height="Auto" Content="Ordner hinzufügen" Click="SearchingFolderAdd"/>
-							<ListBox Name="SearchingFoldersList" Grid.Row="1" Margin="0 5" HorizontalContentAlignment="Stretch" SelectionMode="Single">
+							<Button Padding="5 1" HorizontalAlignment="Left" 
+											Width="Auto" Height="Auto" 
+											Content="Ordner hinzufügen" Click="SearchingFolderAdd"/>
+							<ListBox Name="SearchingFoldersList" Grid.Row="1" 
+											 Margin="0 5" 
+											 HorizontalContentAlignment="Stretch" SelectionMode="Single">
 								<ListBox.ItemTemplate>
 									<DataTemplate>
 										<Grid>
@@ -65,7 +102,9 @@
 												<ColumnDefinition Width="Auto"/>
 											</Grid.ColumnDefinitions>
 											<TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding FilePath}"/>
-											<Button Margin="5" Height="20" Padding="10 0" Grid.Column="2" Content="Ordner entfernen" Click="DeleteSearchingFolder"/>
+											<Button Margin="5" Height="20" Padding="10 0" 
+															Grid.Column="2" 
+															Content="Ordner entfernen" Click="DeleteSearchingFolder"/>
 										</Grid>
 									</DataTemplate>
 								</ListBox.ItemTemplate>
@@ -125,39 +164,42 @@
 									<RowDefinition Height="Auto"/>
 									<RowDefinition Height="Auto"/>
 									<RowDefinition Height="Auto"/>
+									<RowDefinition Height="Auto"/>
 								</Grid.RowDefinitions>
-								<TextBlock Grid.Row="0" Grid.Column="0" Text="Dateiname: "/>
-								<TextBlock Grid.Row="1" Grid.Column="0" Text="Dateigröße: "/>
-								<TextBlock Grid.Row="2" Grid.Column="0" Text="Letzter Schreibzugriff: "/>
+								<TextBlock Margin="5 2" Grid.Row="0" Grid.Column="0" Text="Dateiname: "/>
+								<TextBlock Margin="5 2" Grid.Row="1" Grid.Column="0" Text="Dateigröße: "/>
+								<TextBlock Margin="5 2" Grid.Row="2" Grid.Column="0" Text="Letzter Schreibzugriff: "/>
+								<TextBlock Margin="5 2" Grid.Row="3" Grid.Column="0" Text="Metadaten:"/>
 								<TextBlock Name="TB_DuplInfoName" Grid.Row="0" Grid.Column="1" />
 								<TextBlock Name="TB_DuplInfoSize" Grid.Row="1" Grid.Column="1" />
 								<TextBlock Name="TB_DuplInfoDate" Grid.Row="2" Grid.Column="1" />
+								<TextBlock Name="TB_DuplInfoMetaData" Grid.Row="3" Grid.Column="1" />
 							</Grid>
 						</GroupBox>
 						<GroupBox  Header="Dateien">
-						<ListBox Name="SameFilesList" Margin="0 5" Grid.Row="2" HorizontalContentAlignment="Stretch" SelectionChanged="DuplicatesList_SelectionChanged" SelectionMode="Single">
-							<ListBox.ItemTemplate>
-								<DataTemplate>
-									<Grid>
-										<Grid.ColumnDefinitions>
-											<ColumnDefinition Width="*"/>
-											<ColumnDefinition Width="Auto"/>
-											<ColumnDefinition Width="Auto"/>
-										</Grid.ColumnDefinitions>
-										<StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Vertical">
-											<TextBlock TextWrapping="Wrap" Text="{Binding FullName}" MouseDown="DuplFileOpenExplorer" ToolTip="Click to open in explorer"/>
-											<TextBlock Text="{Binding FileSizekB}"/>
-											<TextBlock Text="{Binding LastWriteTime}"/>
-										</StackPanel>
-										<Image Name="ShownImage" Margin="3" 
+							<ListBox Name="SameFilesList" Margin="0 5" Grid.Row="2" HorizontalContentAlignment="Stretch" SelectionChanged="DuplicatesList_SelectionChanged" SelectionMode="Single">
+								<ListBox.ItemTemplate>
+									<DataTemplate>
+										<Grid>
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Vertical">
+												<TextBlock TextWrapping="Wrap" Text="{Binding FullName}" MouseDown="DuplFileOpenExplorer" ToolTip="Click to open in explorer"/>
+												<TextBlock Text="{Binding FileSizekB}"/>
+												<TextBlock Text="{Binding LastWriteTime}"/>
+											</StackPanel>
+											<Image Name="ShownImage" Margin="3" 
 													 Grid.Column="1" MaxHeight="100" 
 													 Source="{Binding FullName, Converter={StaticResource ResourceKey=MyImageConverter}}"  />
-										<Button Margin="10" Height="30" Padding="10 0" Grid.Column="2" Content="Datei entfernen" Click="DeleteFile"/>
-									</Grid>
-								</DataTemplate>
-							</ListBox.ItemTemplate>
-						</ListBox>
-					</GroupBox>
+											<Button Margin="10" Height="30" Padding="10 0" Grid.Column="2" Content="Datei entfernen" Click="DeleteFile"/>
+										</Grid>
+									</DataTemplate>
+								</ListBox.ItemTemplate>
+							</ListBox>
+						</GroupBox>
 					</StackPanel>
 				</Grid>
 			</TabItem>

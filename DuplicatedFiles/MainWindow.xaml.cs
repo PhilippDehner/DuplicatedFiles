@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -80,6 +81,8 @@ namespace DuplicatedFiles
 			}
 
 			public int SettingsVersion;
+
+			public bool IgnoreMetaData;
 
 			[XmlIgnore]
 			private const int MaxSettingsVersion = 1;
@@ -193,10 +196,43 @@ namespace DuplicatedFiles
 				}
 			}
 
+			public override string ToString()
+			{
+				return FullName;
+			}
+
+			public bool EqualsPixels(OwnFile obj)
+			{
+				var img1 = (Bitmap)System.Drawing.Image.FromFile(FullName);
+				var img2 = (Bitmap)System.Drawing.Image.FromFile(obj.FullName);
+
+				if (img1.Width == img2.Width && img1.Height == img2.Height)
+				{
+					for (int i = 0; i < img1.Width; i++)
+					{
+						for (int j = 0; j < img1.Height; j++)
+						{
+							var img1_ref = img1.GetPixel(i, j);
+							var img2_ref = img2.GetPixel(i, j);
+							if (!img1_ref.Equals(img2_ref)) return false;
+						}
+					}
+				}
+				else
+				{
+					return false;
+				}
+				return true;
+			}
+
 			public bool Equals(OwnFile obj)
 			{
 				return this.HashStr.Equals(obj.HashStr);
 				//return this.Hash.Equals(obj.Hash);
+
+				//Bitmap img1 = (Bitmap)System.Drawing.Image.FromFile(FullName);
+				//Bitmap img2 = (Bitmap)System.Drawing.Image.FromFile(obj.FullName);
+				//return img1.Equals(img2);
 			}
 		}
 
@@ -301,6 +337,7 @@ namespace DuplicatedFiles
 			RB_DeleteModeDeleting.IsChecked = Settings.DeleteMode;
 			RB_SeetingsTrashWithoutStructure.IsChecked = Settings.TrashMode;
 			RB_SeetingsTrashWithStructure.IsChecked = !Settings.TrashMode;
+			CB_IgnoreMetaData.IsChecked = Settings.IgnoreMetaData;
 
 			Tab_Auswertung.IsEnabled = false;
 			Tab_DuplicatedFiles.IsEnabled = false;
@@ -309,7 +346,7 @@ namespace DuplicatedFiles
 			WriteSettingsToXml(Settings);
 		}
 
-		#region Methods
+		#region private Methods
 		private void UpdateSearchingPaths()
 		{
 			WriteSettingsToXml(Settings);
@@ -327,6 +364,7 @@ namespace DuplicatedFiles
 				bool sameName = true;
 				bool sameSize = true;
 				bool sameDate = true;
+				bool? sameMetaData = null;
 
 				for (int i = 1; i < ds.Count; i++)
 				{
@@ -337,37 +375,64 @@ namespace DuplicatedFiles
 					if (!ds[i].LastWriteTime.Equals(ds[i - 1].LastWriteTime) && sameDate)
 						sameDate = false;
 				}
+				if (Settings.IgnoreMetaData)
+				{
+					sameMetaData = true;
+					for (int i = 1; i < ds.Count; i++)
+					{
+						if (!ds[i].Equals(ds[i - 1]) && (sameMetaData ?? true))
+							sameMetaData = false;
+					}
+				}
 
 				if (sameName)
 				{
 					TB_DuplInfoName.Text = ds[0].Name;
-					TB_DuplInfoName.Foreground = Brushes.Black;
+					TB_DuplInfoName.Foreground = System.Windows.Media.Brushes.Black;
 				}
 				else
 				{
-					TB_DuplInfoName.Text = "Unterschiedliche Dateinamen";
-					TB_DuplInfoName.Foreground = Brushes.Orange;
+					TB_DuplInfoName.Text = "Unterschiedlich";
+					TB_DuplInfoName.Foreground = System.Windows.Media.Brushes.Orange;
 				}
 
 				if (sameSize)
 				{
 					TB_DuplInfoSize.Text = ds[0].FileSizeB;
-					TB_DuplInfoSize.Foreground = Brushes.Black;
+					TB_DuplInfoSize.Foreground = System.Windows.Media.Brushes.Black;
 				}
 				else
 				{
-					TB_DuplInfoSize.Text = "Unterschiedliche Dateigrößen";
-					TB_DuplInfoSize.Foreground = Brushes.Orange;
+					TB_DuplInfoSize.Text = "Unterschiedlich";
+					TB_DuplInfoSize.Foreground = System.Windows.Media.Brushes.Orange;
 				}
 				if (sameDate)
 				{
 					TB_DuplInfoDate.Text = ds[0].LastWriteTime.ToString();
-					TB_DuplInfoDate.Foreground = Brushes.Black;
+					TB_DuplInfoDate.Foreground = System.Windows.Media.Brushes.Black;
 				}
 				else
 				{
-					TB_DuplInfoDate.Text = "Unterschiedliche Erstelldaten";
-					TB_DuplInfoDate.Foreground = Brushes.Orange;
+					TB_DuplInfoDate.Text = "Unterschiedlich";
+					TB_DuplInfoDate.Foreground = System.Windows.Media.Brushes.Orange;
+				}
+				if (sameMetaData == true)
+				{
+					TB_DuplInfoMetaData.Text = "Gleich";
+					TB_DuplInfoMetaData.ToolTip = "";
+					TB_DuplInfoMetaData.Foreground = System.Windows.Media.Brushes.Black;
+				}
+				if (sameMetaData == false)
+				{
+					TB_DuplInfoMetaData.Text = "Unterschiedlich";
+					TB_DuplInfoMetaData.ToolTip = "";
+					TB_DuplInfoMetaData.Foreground = System.Windows.Media.Brushes.Orange;
+				}
+				if (sameMetaData == null)
+				{
+					TB_DuplInfoMetaData.Text = "?";
+					TB_DuplInfoMetaData.ToolTip = "Nicht ausgewertet, siehe Tab Einstellungen";
+					TB_DuplInfoMetaData.Foreground = System.Windows.Media.Brushes.Black;
 				}
 			}
 		}
@@ -461,12 +526,19 @@ namespace DuplicatedFiles
 				List<OwnFile> toDeleteFiles = new List<OwnFile>();
 				foreach (OwnFile file in allFiles)
 				{
-					if (file.Equals(comparingFile))
+					bool same;
+					if (!Settings.IgnoreMetaData)
+						same = file.Equals(comparingFile);
+					else
+						same = file.EqualsPixels(comparingFile);
+
+					if (same)
 					{
 						sameFile.Add(file);
 						toDeleteFiles.Add(file);
 					}
 				}
+
 				foreach (OwnFile file in toDeleteFiles)
 				{
 					allFiles.Remove(file);
@@ -585,9 +657,11 @@ namespace DuplicatedFiles
 			string path = textBlock.Text;
 			string args = string.Format("/e, /select, \"{0}\"", path);
 
-			ProcessStartInfo info = new ProcessStartInfo();
-			info.FileName = "explorer";
-			info.Arguments = args;
+			ProcessStartInfo info = new ProcessStartInfo
+			{
+				FileName = "explorer",
+				Arguments = args
+			};
 			Process.Start(info);
 		}
 
@@ -641,62 +715,17 @@ namespace DuplicatedFiles
 			But_EditDuplicates.IsEnabled = true;
 		}
 
-		void Window_Closing(object sender, CancelEventArgs e)
+		private void Window_Closing(object sender, CancelEventArgs e)
 		{
+			WriteSettingsToXml(Settings);
+		}
+
+		private void CB_IgnoreMetaData_Changed(object sender, RoutedEventArgs e)
+		{
+			System.Windows.Controls.CheckBox baseobj = (System.Windows.Controls.CheckBox)sender;
+			Settings.IgnoreMetaData = baseobj.IsChecked ?? false;
 		}
 		#endregion
-
-
-		/// <summary>
-		/// Finds a Child of a given item in the visual tree. 
-		/// </summary>
-		/// <param name="parent">A direct parent of the queried item.</param>
-		/// <typeparam name="T">The type of the queried item.</typeparam>
-		/// <param name="childName">x:Name or Name of child. </param>
-		/// <returns>The first parent item that matches the submitted type parameter. 
-		/// If not matching item can be found, a null parent is being returned.</returns>
-		private static T FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject
-		{
-			// Confirm parent and childName are valid. 
-			if (parent == null) return null;
-
-			T foundChild = null;
-
-			int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
-			for (int i = 0; i < childrenCount; i++)
-			{
-				var child = VisualTreeHelper.GetChild(parent, i);
-				// If the child is not of the request child type child
-				T childType = child as T;
-				if (childType == null)
-				{
-					// recursively drill down the tree
-					foundChild = FindChild<T>(child, childName);
-
-					// If the child is found, break so we do not overwrite the found child. 
-					if (foundChild != null) break;
-				}
-				else if (!string.IsNullOrEmpty(childName))
-				{
-					var frameworkElement = child as FrameworkElement;
-					// If the child's name is set for search
-					if (frameworkElement != null && frameworkElement.Name == childName)
-					{
-						// if the child's name is of the request name
-						foundChild = (T)child;
-						break;
-					}
-				}
-				else
-				{
-					// child element found.
-					foundChild = (T)child;
-					break;
-				}
-			}
-
-			return foundChild;
-		}
 	}
 
 	public static class AttributesHelperExtension
